@@ -53,14 +53,14 @@ pip install openpyxl
 # Usage
 ##### python3 nessusparser.py [options]
 ```bash
-Command-Line Arguments
-Argument	Description	Example
--e/--external	Path to the external Nessus file (.nessus).	-e external_scan.nessus
--i/--internal	Path to the internal Nessus file (.nessus).	-i internal_scan.nessus
--a/--attackforge	Path to the .customization (AttackForge) file for appending vulnerabilities. -a extra_vulns.customization
--b/--bloodhound	Path to the .zip file to extract Bloodhound data from. -b bloodhound_scan.zip
--o/--output	Output Excel file name. (Defaults to Nessus_Report.xlsx.) -o My_Report.xlsx
-Note: You must provide at least one of -e, -i, -b or -a. Any combination is valid.
+
+-e/--external Path to the external Nessus file (.nessus). -e external_scan.nessus
+-i/--internal Path to the internal Nessus file (.nessus). -i internal_scan.nessus
+-a/--attackforge Path to the .customization (AttackForge). file for appending vulnerabilities. -a extra_vulns.customization
+-b/--bloodhound Path to the .zip file to extract Bloodhound data from. -b bloodhound_scan.zip
+-o/--output Output Excel file name. (Defaults to Nessus_Report.xlsx.). -o My_Report.xlsx
+
+- Note: You must provide at least one of -e, -i, -b or -a. Any combination is valid.
 ```
 
 # Example Usage
