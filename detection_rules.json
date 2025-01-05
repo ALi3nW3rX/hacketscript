@@ -44,5 +44,14 @@
             "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
             "lambda user: user.get('Properties', {}).get('description', 'N/A')"
         ]
+    },
+    "Admin Users": {
+        "filter": "lambda user: 'Admin' in user.get('GroupName', '')",
+        "headers": ["Username", "Group Name", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('GroupName', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
     }
 }
