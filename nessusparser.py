@@ -50,18 +50,17 @@ def colored_text(text, color="white"):
 
 
 class SpinnerManager:
-    """Context manager for displaying a loading spinner."""
     def __init__(self, msg):
         self.stop_event = Event()
-        self.msg = msg
+        self.msg = colored_text(msg, "blue")  # Make the message blue
         self.spinner_thread = None
 
     def spin(self):
         spinner_cycle = cycle(['|', '/', '-', '\\'])
         while not self.stop_event.is_set():
-            print(f"\r{self.msg} {next(spinner_cycle)}", end="", flush=True)
+            print(f"\r{self.msg} {colored_text(next(spinner_cycle), 'blue')}   ", end="", flush=True)  # Extra spaces after the spinner
             time.sleep(0.1)
-        print("\r" + colored_text(f"{self.msg} Completed!", "green"), end="")
+        print("\r" + colored_text(f"{self.msg}   Completed!", "green"))  # Extra spaces before 'Completed!'
 
     def __enter__(self):
         self.spinner_thread = threading.Thread(target=self.spin)
@@ -72,6 +71,8 @@ class SpinnerManager:
         self.stop_event.set()
         if self.spinner_thread:
             self.spinner_thread.join()
+
+
 
 def parse_nessus_file(file_path):
     """Parse .nessus file and extract vulnerability data, skipping 'Informational' findings."""
@@ -398,18 +399,18 @@ def append_customization_data(custom_file, workbook):
         ws_ext = workbook["External Scan"]
         for row in external_rows:
             ws_ext.append(row)
-        print(f"Appended {len(external_rows)} vulnerabilities to 'External Scan' tab.")
+        print(f"{colored_text('Appended', 'white')} {colored_text(len(external_rows), 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('External Scan', 'green')} tab.")
     else:
-        print("Warning: 'External Scan' sheet not found. No external data appended.")
+        print(colored_text("Warning: 'External Scan' sheet not found. No external data appended.", "red"))
 
     # Append to "Internal Scan"
     if "Internal Scan" in workbook.sheetnames:
         ws_int = workbook["Internal Scan"]
         for row in internal_rows:
             ws_int.append(row)
-        print(f"Appended {len(internal_rows)} vulnerabilities to 'Internal Scan' tab.")
+        print(f"{colored_text('Appended', 'white')} {colored_text(len(internal_rows), 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('Internal Scan', 'green')} tab.")
     else:
-        print("Warning: 'Internal Scan' sheet not found. No internal data appended.")
+        print(colored_text("Warning: 'Internal Scan' sheet not found. No Internal data appended.", "red"))
 
 def is_valid_zip(file_path):
     """Check if the provided file path is a valid .zip file."""
@@ -500,13 +501,14 @@ def sanitize_sheet_name(name):
 
 def apply_workbook_styling(workbook):
     """Apply consistent styling across all worksheets in the workbook."""
-    print("Applying consistent styling across all worksheets...")
+    print(colored_text("Applying consistent styling across all worksheets...", "yellow"))
     header_font = Font(name="Calibri", size=12, bold=True)
     cell_font = Font(name="Calibri", size=11)
     
     for sheet_name in workbook.sheetnames:
         ws = workbook[sheet_name]
-        print(f"Styling worksheet: {sheet_name}")
+        print(f"{colored_text('Styling worksheet:', 'white')} {colored_text(sheet_name, 'green')}")
+
 
         # Wrap text ONLY for External Port Table & Internal Port Table
         # All other sheets: wrap_text = False
@@ -780,11 +782,11 @@ def main():
     process_files(args, workbook)
 
 def process_files(args, workbook):
-    with SpinnerManager("Processing files"):
+    with SpinnerManager(colored_text("Processing files", "blue")):
         # EXTERNAL
         if args.external:
             if not os.path.isfile(args.external) or not args.external.lower().endswith('.nessus'):
-                print("Error: External file is not a valid .nessus file.")
+                print(colored_text("Error: External file is not a valid .nessus file.", "red"))
             else:
                 external_data = parse_nessus_file(args.external)
                 write_to_excel(external_data, 'External Scan', workbook)
@@ -793,7 +795,7 @@ def process_files(args, workbook):
         # INTERNAL
         if args.internal:
             if not os.path.isfile(args.internal) or not args.internal.lower().endswith('.nessus'):
-                print("Error: Internal file is not a valid .nessus file.")
+                print(colored_text("Error: Internal file is not a valid .nessus file.", "red"))
             else:
                 internal_data = parse_nessus_file(args.internal)
                 write_to_excel(internal_data, 'Internal Scan', workbook)
@@ -809,23 +811,24 @@ def process_files(args, workbook):
             if is_valid_zip(args.bloodhound):
                 parse_bloodhound_zip(args.bloodhound, workbook)
             else:
-                print("Error: Provided BloodHound file is not a valid .zip file.")
+                print(colored_text("Error: Provided BloodHound file is not a valid .zip file.", "red"))
 
         # ATTACKFORGE
         if args.attackforge:
             if is_valid_customization(args.attackforge):
                 append_customization_data(args.attackforge, workbook)
             else:
-                print("Error: Provided AttackForge file is not a valid .customization file.")
+                print(colored_text("Error: Provided AttackForge file is not a valid .customization file.", "red"))
 
         # Apply styling to all sheets after they're created
         apply_workbook_styling(workbook)
 
     try:
         workbook.save(args.output)
-        print(f"\nReport saved successfully as {args.output}")
+        print(f"\n{colored_text('Report saved successfully!!', 'white')}: {colored_text(args.output, 'green')}")
     except Exception as e:
         print(f"\nError saving report: {e}")
+
 
 
 if __name__ == "__main__":
