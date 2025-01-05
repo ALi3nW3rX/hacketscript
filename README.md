@@ -25,7 +25,7 @@ This Python script parses Nessus (`.nessus`) files to generate a multi-tab Excel
      - DNS Name, IP Address, Open Ports, URLs
 
 4. **Customization Data** (JSON, `.customization`)  
-   - If provided via `-j`, the script appends additional vulnerabilities to **External Scan** and **Internal Scan** tabs.
+   - If provided via `-a`, the script appends additional vulnerabilities to **External Scan** and **Internal Scan** tabs.
 
 5. **Color-Coding**  
    - Rows with severity **Critical**, **High**, **Medium**, **Low**, or **Informational** are automatically highlighted according to pre-defined colors.
@@ -33,6 +33,10 @@ This Python script parses Nessus (`.nessus`) files to generate a multi-tab Excel
 6. **Auto-Styling**  
    - Automatic column-width adjustments (heuristic).  
    - Freezes the first two columns (`A`, `B`) on “External Scan” and “Internal Scan” tabs for easy navigation.
+
+7. **[ NEW!! ]** **Bloodhound**
+   - Will find the Bloodhound data in the Nessus file and create a new tab with the data.
+   - Currently only finds kerberoastable users and their associated SPNs, ASREProastable users and their associated SPNs, Users with Unconstrained Delegation, Users with RBCD. (MORE TO COME).
 
 ## Requirements
 
@@ -53,19 +57,20 @@ Command-Line Arguments
 Argument	Description	Example
 -e/--external	Path to the external Nessus file (.nessus).	-e external_scan.nessus
 -i/--internal	Path to the internal Nessus file (.nessus).	-i internal_scan.nessus
--j/--json	Path to the .customization (AttackForge) file for appending vulnerabilities. -j extra_vulns.customization
+-a/--attackforge	Path to the .customization (AttackForge) file for appending vulnerabilities. -a extra_vulns.customization
+-b/--bloodhound	Path to the .zip file to extract Bloodhound data from. -b bloodhound_scan.zip
 -o/--output	Output Excel file name. (Defaults to Nessus_Report.xlsx.) -o My_Report.xlsx
-Note: You must provide at least one of -e, -i, or -j. Any combination is valid.
+Note: You must provide at least one of -e, -i, -b or -a. Any combination is valid.
 ```
 
 # Example Usage
 ```bash
-
 python nessus_report_parser.py --external external_scan.nessus
 python nessus_report_parser.py --internal internal_scan.nessus
 python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus
-python nessus_report_parser.py -i internal_scan.nessus -j extra_vulns.json
-python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -j extra_vulns.customization -o final_report.xlsx
+python nessus_report_parser.py -i internal_scan.nessus -a extra_vulns.customization
+python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
+python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -b bloodhound.zip -o final_report.xlsx
 ```
 
 # Output
@@ -83,6 +88,8 @@ The script generates an Excel file (default: Nessus_Report.xlsx) with multiple t
 - Internal Port Table (internal only)
 - SMB Signing Off (internal only)
 - Appended vulnerabilities from a .customization file (merged into “External Scan” / “Internal Scan”).
+- Bloodhound data (if bloodhound.zip is provided and there are findings).
+```
 
 Severity-based color highlighting and column auto-sizing provide clarity for analyzing results.
 ```
