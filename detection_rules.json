@@ -35,5 +35,14 @@
             "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
             "lambda user: user.get('Properties', {}).get('description', 'N/A')"
         ]
+    },
+    "Domain Admins": {
+        "filter": "lambda user: user.get('Properties', {}).get('admincount', False) is True",
+        "headers": ["Username", "Display Name", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
     }
 }
