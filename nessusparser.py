@@ -34,8 +34,25 @@ SEVERITY_FILL_COLORS = {
     "High": PatternFill(start_color="F5B7B1", end_color="F5B7B1", fill_type="solid"),
     "Medium": PatternFill(start_color="FAD7A0", end_color="FAD7A0", fill_type="solid"),
     "Low": PatternFill(start_color="ABEBC6", end_color="ABEBC6", fill_type="solid"),
-    "Informational": PatternFill(start_color="F8F9F9", end_color="F8F9F9", fill_type="solid")
+    "Info": PatternFill(start_color="D6E4F0", end_color="D6E4F0", fill_type="solid")
 }
+
+def sort_worksheet_by_severity(ws, severity_column="B"):
+    # Convert column letter to index
+    severity_col_index = ws[severity_column][0].column
+
+    # Read all rows into a list, skip the header
+    data = list(ws.iter_rows(values_only=True))
+    header, rows = data[0], data[1:]
+
+    # Sort rows by the severity column (assuming severity is in text format, e.g., 'Critical', 'High', etc.)
+    severity_order = {"Critical": 1, "High": 2, "Medium": 3, "Low": 4, "Info": 5}
+    rows.sort(key=lambda row: severity_order.get(row[severity_col_index - 1], 6))
+
+    # Clear the worksheet and write the sorted rows back
+    for row_index, row in enumerate([header] + rows, start=1):
+        for col_index, value in enumerate(row, start=1):
+            ws.cell(row=row_index, column=col_index, value=value)
 
 def colored_text(text, color="white"):
     colors = {
@@ -819,6 +836,13 @@ def process_files(args, workbook):
                 append_customization_data(args.attackforge, workbook)
             else:
                 print(colored_text("Error: Provided AttackForge file is not a valid .customization file.", "red"))
+                
+        # Sort External Scan and Internal Scan sheets by severity
+        if "External Scan" in workbook.sheetnames:
+            sort_worksheet_by_severity(workbook["External Scan"])
+
+        if "Internal Scan" in workbook.sheetnames:
+            sort_worksheet_by_severity(workbook["Internal Scan"])
 
         # Apply styling to all sheets after they're created
         apply_workbook_styling(workbook)
