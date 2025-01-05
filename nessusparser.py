@@ -10,6 +10,7 @@ from itertools import cycle
 import re
 from threading import Event
 import json
+import zipfile
 
 try:
     import ipaddress  # For detecting IPv6 if needed
@@ -36,6 +37,18 @@ SEVERITY_FILL_COLORS = {
     "Informational": PatternFill(start_color="F8F9F9", end_color="F8F9F9", fill_type="solid")
 }
 
+def colored_text(text, color="white"):
+    colors = {
+        "red": "\033[91m",
+        "green": "\033[92m",
+        "yellow": "\033[93m",
+        "blue": "\033[94m",
+        "white": "\033[97m",
+        "reset": "\033[0m",
+    }
+    return f"{colors.get(color, colors['white'])}{text}{colors['reset']}"
+
+
 class SpinnerManager:
     """Context manager for displaying a loading spinner."""
     def __init__(self, msg):
@@ -48,7 +61,7 @@ class SpinnerManager:
         while not self.stop_event.is_set():
             print(f"\r{self.msg} {next(spinner_cycle)}", end="", flush=True)
             time.sleep(0.1)
-        print("\r", end="")
+        print("\r" + colored_text(f"{self.msg} Completed!", "green"), end="")
 
     def __enter__(self):
         self.spinner_thread = threading.Thread(target=self.spin)
@@ -64,6 +77,7 @@ def parse_nessus_file(file_path):
     """Parse .nessus file and extract vulnerability data, skipping 'Informational' findings."""
     try:
         print(f"Parsing Nessus file: {file_path}")
+        print("\r" + colored_text(f"Parsing Nessus File: {file_path}", "green"), end="")
         tree = ET.parse(file_path)
         root = tree.getroot()
     except ET.ParseError as e:
@@ -323,6 +337,10 @@ def write_missing_critical_patches(data_dict, workbook):
             ', '.join(data['Affected Hosts'])
         ])
 
+def is_valid_customization(file_path):
+    """Check if the provided file path is a valid .customization file."""
+    return os.path.isfile(file_path) and file_path.endswith('.customization')
+
 def append_customization_data(custom_file, workbook):
     """
     Loads a .customization (JSON) file and appends the vulnerabilities
@@ -392,6 +410,93 @@ def append_customization_data(custom_file, workbook):
         print(f"Appended {len(internal_rows)} vulnerabilities to 'Internal Scan' tab.")
     else:
         print("Warning: 'Internal Scan' sheet not found. No internal data appended.")
+
+def is_valid_zip(file_path):
+    """Check if the provided file path is a valid .zip file."""
+    return os.path.isfile(file_path) and file_path.endswith('.zip')
+        
+def parse_bloodhound_zip(zip_path, workbook):
+    if not is_valid_zip(zip_path):
+        print(f"Error: {zip_path} is not a valid .zip file.")
+        return
+
+    print(f"Processing BloodHound file: {zip_path}")
+
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_file:
+            # Look for `users.json` or similar files in the archive
+            for file_name in zip_file.namelist():
+                if "users.json" in file_name.lower():
+                    print(f"Found: {file_name}")
+                    with zip_file.open(file_name) as f:
+                        data = json.load(f)
+
+                        # Define detection rules
+                        detection_rules = {
+                            "Kerberoastable Users": {
+                                "filter": lambda user: user.get('Properties', {}).get('hasspn', False),
+                                "headers": ['Username', 'Display Name', 'SPN', 'Description'],
+                                "extract": lambda user: [
+                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
+                                    user.get('Properties', {}).get('displayname', 'N/A'),
+                                    ', '.join(user.get('Properties', {}).get('serviceprincipalnames', [])) or 'N/A',
+                                    user.get('Properties', {}).get('description', 'N/A')
+                                ]
+                            },
+                            "ASREPRoastable Users": {
+                                "filter": lambda user: user.get('Properties', {}).get('dontreqpreauth', False),
+                                "headers": ['Username', 'Display Name', 'Description'],
+                                "extract": lambda user: [
+                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
+                                    user.get('Properties', {}).get('displayname', 'N/A'),
+                                    user.get('Properties', {}).get('description', 'N/A')
+                                ]
+                            },
+                            "Users With Unconstrained Delegation": {
+                                "filter": lambda user: user.get('Properties', {}).get('unconstraineddelegation', False),
+                                "headers": ['Username', 'Display Name', 'Description'],
+                                "extract": lambda user: [
+                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
+                                    user.get('Properties', {}).get('displayname', 'N/A'),
+                                    user.get('Properties', {}).get('description', 'N/A')
+                                ]
+                            },
+                            "Users With RBCD": {
+                                "filter": lambda user: user.get('Properties', {}).get('rbcdenabled', False),
+                                "headers": ['Username', 'Display Name', 'Description'],
+                                "extract": lambda user: [
+                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
+                                    user.get('Properties', {}).get('displayname', 'N/A'),
+                                    user.get('Properties', {}).get('description', 'N/A')
+                                ]
+                            }
+                        }
+
+                        # Process each detection rule
+                        for sheet_name, rule in detection_rules.items():
+                            rows = []
+                            for user in data.get('data', []):
+                                if rule["filter"](user):
+                                    rows.append(rule["extract"](user))
+
+                            if rows:
+                                print(f"Creating sheet: {sheet_name}")
+                                ws = workbook.create_sheet(title=sheet_name)
+                                ws.append(rule["headers"])
+                                for row in rows:
+                                    ws.append(row)
+
+        print("Finished processing BloodHound file.")
+    except Exception as e:
+        print(f"Error processing BloodHound file: {e}")
+
+
+def sanitize_sheet_name(name):
+    """Ensure the sheet name is valid for Excel."""
+    invalid_chars = ['\\', '/', '*', '[', ']', ':', '?']
+    for char in invalid_chars:
+        name = name.replace(char, '')
+    return name[:31]  # Limit to 31 characters
 
 def apply_workbook_styling(workbook):
     """Apply consistent styling across all worksheets in the workbook."""
@@ -657,18 +762,25 @@ def main():
     parser = argparse.ArgumentParser(description='Parse Nessus files and generate Excel report.')
     parser.add_argument('-e', '--external', help='Path to the external Nessus scan file.')
     parser.add_argument('-i', '--internal', help='Path to the internal Nessus scan file.')
-    parser.add_argument('-j', '--json', help='Path to the .customization (JSON) file.')
+    parser.add_argument('-a', '--attackforge', help='Path to the .customization (AttackForge) file.')
+    parser.add_argument('-b', '--bloodhound', help='Path to the BloodHound .zip file.')
     parser.add_argument('-o', '--output', default='Nessus_Report.xlsx',
                         help='Output Excel file name (default: Nessus_Report.xlsx)')
+
     args = parser.parse_args()
 
-    if not args.external and not args.internal and not args.json:
-        parser.error("Please provide at least one Nessus file (-e or -i) or a JSON file (-j).")
+    if not any([args.external, args.internal, args.attackforge, args.bloodhound]):
+        parser.error("Please provide at least one input file.")
 
+    # Create a new workbook
     workbook = openpyxl.Workbook()
     workbook.remove(workbook.active)
 
-    with SpinnerManager("Processing Nessus files"):
+    # Process the provided files
+    process_files(args, workbook)
+
+def process_files(args, workbook):
+    with SpinnerManager("Processing files"):
         # EXTERNAL
         if args.external:
             if not os.path.isfile(args.external) or not args.external.lower().endswith('.nessus'):
@@ -676,7 +788,6 @@ def main():
             else:
                 external_data = parse_nessus_file(args.external)
                 write_to_excel(external_data, 'External Scan', workbook)
-                # Also create "External Port Table" with an extra "Port Info" column + URLs
                 write_port_table(args.external, workbook, "External Port Table", is_external=True)
 
         # INTERNAL
@@ -692,19 +803,30 @@ def main():
                 write_protocols_tab(args.internal, workbook)
                 write_port_table(args.internal, workbook, "Internal Port Table", is_external=False)
                 write_smb_signing_off(args.internal, workbook)
-                
-        # If provided, parse .customization JSON & append data to "External Scan"/"Internal Scan"
-        if args.json and os.path.isfile(args.json):
-            append_customization_data(args.json, workbook)
-        
+
+        # BLOODHOUND
+        if args.bloodhound:
+            if is_valid_zip(args.bloodhound):
+                parse_bloodhound_zip(args.bloodhound, workbook)
+            else:
+                print("Error: Provided BloodHound file is not a valid .zip file.")
+
+        # ATTACKFORGE
+        if args.attackforge:
+            if is_valid_customization(args.attackforge):
+                append_customization_data(args.attackforge, workbook)
+            else:
+                print("Error: Provided AttackForge file is not a valid .customization file.")
+
         # Apply styling to all sheets after they're created
         apply_workbook_styling(workbook)
 
     try:
         workbook.save(args.output)
-        print(f"\nReport (including port tables) saved successfully as {args.output}")
+        print(f"\nReport saved successfully as {args.output}")
     except Exception as e:
         print(f"\nError saving report: {e}")
+
 
 if __name__ == "__main__":
     main()
