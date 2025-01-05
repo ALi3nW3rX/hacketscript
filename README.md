@@ -42,7 +42,7 @@ This Python script parses Nessus (`.nessus`) files to generate a multi-tab Excel
   - `xml.etree.ElementTree` (standard library)
   - `ipaddress` (standard library in Python 3.3+, fallback if on older versions)
 
-# Install `openpyxl` via:
+# Install
 ```bash
 pip install openpyxl
 ```
