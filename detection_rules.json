@@ -1,0 +1,39 @@
+{
+    "Kerberoastable Users": {
+        "filter": "lambda user: user.get('Properties', {}).get('hasspn', False)",
+        "headers": ["Username", "Display Name", "SPN", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
+            "lambda user: ', '.join(user.get('Properties', {}).get('serviceprincipalnames', [])) or 'N/A'",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
+    },
+    "ASREPRoastable Users": {
+        "filter": "lambda user: user.get('Properties', {}).get('dontreqpreauth', False)",
+        "headers": ["Username", "Display Name", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
+    },
+    "Users With Unconstrained Delegation": {
+        "filter": "lambda user: user.get('Properties', {}).get('unconstraineddelegation', False)",
+        "headers": ["Username", "Display Name", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
+    },
+    "Users With RBCD": {
+        "filter": "lambda user: user.get('Properties', {}).get('rbcdenabled', False)",
+        "headers": ["Username", "Display Name", "Description"],
+        "extract": [
+            "lambda user: user.get('Properties', {}).get('samaccountname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('displayname', 'N/A')",
+            "lambda user: user.get('Properties', {}).get('description', 'N/A')"
+        ]
+    }
+}

@@ -12,6 +12,7 @@ from threading import Event
 import json
 import zipfile
 
+
 try:
     import ipaddress  # For detecting IPv6 if needed
 except ImportError:
@@ -432,7 +433,18 @@ def append_customization_data(custom_file, workbook):
 def is_valid_zip(file_path):
     """Check if the provided file path is a valid .zip file."""
     return os.path.isfile(file_path) and file_path.endswith('.zip')
-        
+
+def load_detection_rules(json_path):
+    with open(json_path, 'r') as f:
+        rules = json.load(f)
+
+    # Convert filter and extract strings to executable functions
+    for rule_name, rule in rules.items():
+        rule['filter'] = eval(rule['filter'])  # Convert filter to a lambda function
+        rule['extract'] = [eval(extract) for extract in rule['extract']]  # Convert each extract to a function
+
+    return rules
+      
 def parse_bloodhound_zip(zip_path, workbook):
     if not is_valid_zip(zip_path):
         print(f"Error: {zip_path} is not a valid .zip file.")
@@ -440,71 +452,29 @@ def parse_bloodhound_zip(zip_path, workbook):
 
     print(f"Processing BloodHound file: {zip_path}")
 
+    detection_rules = load_detection_rules('detection_rules.json')
+
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_file:
-            # Look for `users.json` or similar files in the archive
             for file_name in zip_file.namelist():
                 if "users.json" in file_name.lower():
                     print(f"Found: {file_name}")
                     with zip_file.open(file_name) as f:
                         data = json.load(f)
 
-                        # Define detection rules
-                        detection_rules = {
-                            "Kerberoastable Users": {
-                                "filter": lambda user: user.get('Properties', {}).get('hasspn', False),
-                                "headers": ['Username', 'Display Name', 'SPN', 'Description'],
-                                "extract": lambda user: [
-                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
-                                    user.get('Properties', {}).get('displayname', 'N/A'),
-                                    ', '.join(user.get('Properties', {}).get('serviceprincipalnames', [])) or 'N/A',
-                                    user.get('Properties', {}).get('description', 'N/A')
-                                ]
-                            },
-                            "ASREPRoastable Users": {
-                                "filter": lambda user: user.get('Properties', {}).get('dontreqpreauth', False),
-                                "headers": ['Username', 'Display Name', 'Description'],
-                                "extract": lambda user: [
-                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
-                                    user.get('Properties', {}).get('displayname', 'N/A'),
-                                    user.get('Properties', {}).get('description', 'N/A')
-                                ]
-                            },
-                            "Users With Unconstrained Delegation": {
-                                "filter": lambda user: user.get('Properties', {}).get('unconstraineddelegation', False),
-                                "headers": ['Username', 'Display Name', 'Description'],
-                                "extract": lambda user: [
-                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
-                                    user.get('Properties', {}).get('displayname', 'N/A'),
-                                    user.get('Properties', {}).get('description', 'N/A')
-                                ]
-                            },
-                            "Users With RBCD": {
-                                "filter": lambda user: user.get('Properties', {}).get('rbcdenabled', False),
-                                "headers": ['Username', 'Display Name', 'Description'],
-                                "extract": lambda user: [
-                                    user.get('Properties', {}).get('samaccountname', 'N/A'),
-                                    user.get('Properties', {}).get('displayname', 'N/A'),
-                                    user.get('Properties', {}).get('description', 'N/A')
-                                ]
-                            }
-                        }
-
                         # Process each detection rule
                         for sheet_name, rule in detection_rules.items():
                             rows = []
                             for user in data.get('data', []):
-                                if rule["filter"](user):
-                                    rows.append(rule["extract"](user))
+                                if rule['filter'](user):
+                                    rows.append([func(user) for func in rule['extract']])  # Iterate over each function in the list
 
                             if rows:
                                 print(f"Creating sheet: {sheet_name}")
                                 ws = workbook.create_sheet(title=sheet_name)
-                                ws.append(rule["headers"])
+                                ws.append(rule['headers'])
                                 for row in rows:
                                     ws.append(row)
-
-        print("Finished processing BloodHound file.")
     except Exception as e:
         print(f"Error processing BloodHound file: {e}")
 
