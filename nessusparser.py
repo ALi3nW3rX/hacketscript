@@ -66,46 +66,22 @@ def colored_text(text, color="white"):
     }
     return f"{colors.get(color, colors['white'])}{text}{colors['reset']}"
 
-
-class SpinnerManager:
-    def __init__(self, msg):
-        self.stop_event = Event()
-        self.msg = colored_text(msg, "blue")  # Make the message blue
-        self.spinner_thread = None
-
-    def spin(self):
-        spinner_cycle = cycle(['|', '/', '-', '\\'])
-        while not self.stop_event.is_set():
-            print(f"\r{self.msg} {colored_text(next(spinner_cycle), 'blue')}   ", end="", flush=True)  # Extra spaces after the spinner
-            time.sleep(0.1)
-        print("\r" + colored_text(f"{self.msg}   Completed!", "green"))  # Extra spaces before 'Completed!'
-
-    def __enter__(self):
-        self.spinner_thread = threading.Thread(target=self.spin)
-        self.spinner_thread.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.stop_event.set()
-        if self.spinner_thread:
-            self.spinner_thread.join()
-
-
+def bold_text(text):
+    return f"\033[1m{text}\033[0m"
 
 def parse_nessus_file(file_path):
-    """Parse .nessus file and extract vulnerability data, skipping 'Informational' findings."""
     try:
-        print(f"Parsing Nessus file: {file_path}")
-        print("\r" + colored_text(f"Parsing Nessus File: {file_path}", "green"), end="")
+        print("\r" + colored_text("Parsing Nessus File:", "white") + " " + colored_text(file_path, "green")+ "\n", end="")
         tree = ET.parse(file_path)
         root = tree.getroot()
     except ET.ParseError as e:
-        print(f"Error: Unable to parse the .nessus file: {file_path}.\nDetails: {e}")
+        print(colored_text(f"Error: Unable to parse the .nessus file: {file_path}.\nDetails: {e}", "red"))
         return {}
 
     vuln_dict = {}
     report_hosts = list(root.iter('ReportHost'))
-    print(f"Found {len(report_hosts)} hosts in the Nessus file.")
+    print(colored_text("Found", "white") + " " + colored_text(str(len(report_hosts)), "green") + " " + colored_text("hosts in the", "white") + " " + colored_text("Nessus file", "green"))
+
 
     for host in report_hosts:
         hostname = host.attrib.get('name', '')
@@ -131,12 +107,10 @@ def parse_nessus_file(file_path):
                 if host_port not in vuln_dict[plugin_name]['Affected Hosts']:
                     vuln_dict[plugin_name]['Affected Hosts'].append(host_port)
 
-    print(f"Parsed {len(vuln_dict)} vulnerabilities from the Nessus file.")
+    print(colored_text("Parsed", "white") + " " + colored_text(str(len(vuln_dict)), "green") + " " + colored_text("vulnerabilities from the", "white")+" "+ colored_text("Nessus file.", "green"))
     return vuln_dict
 
 def write_to_excel(data_dict, sheet_name, workbook):
-    """Write parsed data to Excel worksheet (External Scan or Internal Scan)."""
-    print(f"Writing data to the '{sheet_name}' sheet...")
     ws = workbook.create_sheet(title=sheet_name)
     headers = ['Vulnerability Name', 'Severity', 'Affected Hosts', 'Recommendations']
     
@@ -155,7 +129,6 @@ def write_to_excel(data_dict, sheet_name, workbook):
         ws.append(row)
 
 def write_processes_tab(file_path, workbook):
-    """Write remote access tool processes information to Excel worksheet."""
     print("Processing remote access processes...")
     try:
         tree = ET.parse(file_path)
@@ -207,7 +180,7 @@ def write_processes_tab(file_path, workbook):
             ws.append([ip, info['hostname'], process_list])
 
     except Exception as e:
-        print(f"Error processing processes tab: {e}")
+        print(colored_text(f"Error processing processes tab: {e}", "red"))
 
 def write_protocols_tab(file_path, workbook):
     """
@@ -373,7 +346,6 @@ def append_customization_data(custom_file, workbook):
 
     If either sheet doesn't exist, we'll simply warn and not append.
     """
-    print(f"\nLoading customization from {custom_file}")
     with open(custom_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -449,8 +421,6 @@ def parse_bloodhound_zip(zip_path, workbook):
     if not is_valid_zip(zip_path):
         print(f"Error: {zip_path} is not a valid .zip file.")
         return
-
-    print(f"Processing BloodHound file: {zip_path}")
 
     detection_rules = load_detection_rules('detection_rules.json')
 
@@ -546,8 +516,8 @@ def apply_workbook_styling(workbook):
                         if text_length > max_length:
                             max_length = text_length
                 except Exception as e:
-                    print(f"Warning when processing {sheet_name}: {e}")
-            
+                    print(colored_text(f"Warning when processing {sheet_name}: {e}", "red"))
+ 
             ws.column_dimensions[column_letter].width = min(max_length + 2, 70)
         
         # Freeze columns A and B if it's External or Internal Scan
@@ -662,7 +632,7 @@ def write_smb_signing_off(file_path, workbook):
         tree = ET.parse(file_path)
         root = tree.getroot()
     except Exception as e:
-        print(f"Error parsing Nessus file in write_smb_signing_off: {e}")
+        print(colored_text(f"Error parsing Nessus file in write_smb_signing_off: {e}", "red"))
         return
 
     results = []  # Store tuples of (dns_name, ip_address)
@@ -711,13 +681,7 @@ def write_smb_signing_off(file_path, workbook):
     print(f"Found {total_count} host(s) with SMB signing off.")
 
 def write_port_table(nessus_file, workbook, sheet_name, is_external=False):
-    """
-    Creates a new sheet in 'workbook' named sheet_name and populates it with:
-    - For external scans:
-       DNS Name | IP Address | Open Ports | Port Info | URLs
-    - For internal scans:
-       DNS Name | IP Address | Open Ports | URLs  (No Port Info)
-    """
+
     data = parse_port_info(nessus_file)
     ws = workbook.create_sheet(title=sheet_name)
 
@@ -769,59 +733,73 @@ def main():
     process_files(args, workbook)
 
 def process_files(args, workbook):
-    with SpinnerManager(colored_text("Processing files", "blue")):
-        # EXTERNAL
-        if args.external:
-            if not os.path.isfile(args.external) or not args.external.lower().endswith('.nessus'):
-                print(colored_text("Error: External file is not a valid .nessus file.", "red"))
-            else:
-                external_data = parse_nessus_file(args.external)
-                write_to_excel(external_data, 'External Scan', workbook)
-                write_port_table(args.external, workbook, "External Port Table", is_external=True)
+    print(colored_text("Processing files...", "white"))
+    print("-" * 60)  # Separator line
 
-        # INTERNAL
-        if args.internal:
-            if not os.path.isfile(args.internal) or not args.internal.lower().endswith('.nessus'):
-                print(colored_text("Error: Internal file is not a valid .nessus file.", "red"))
-            else:
-                internal_data = parse_nessus_file(args.internal)
-                write_to_excel(internal_data, 'Internal Scan', workbook)
-                write_processes_tab(args.internal, workbook)
-                write_unsupported_software(internal_data, workbook)
-                write_missing_critical_patches(internal_data, workbook)
-                write_protocols_tab(args.internal, workbook)
-                write_port_table(args.internal, workbook, "Internal Port Table", is_external=False)
-                write_smb_signing_off(args.internal, workbook)
+    # EXTERNAL
+    if args.external:
+        if not os.path.isfile(args.external) or not args.external.lower().endswith('.nessus'):
+            print(colored_text("Error: External file is not a valid .nessus file.", "red"))
+        else:
+            print("\n" + bold_text("Processing Nessus File:") + " " + colored_text(args.external, "green"))
+            external_data = parse_nessus_file(args.external)
+            print(colored_text("Writing data to the External Scan sheet...", "yellow"))
+            write_to_excel(external_data, 'External Scan', workbook)
+            write_port_table(args.external, workbook, "External Port Table", is_external=True)
+            print("-" * 60)
 
-        # BLOODHOUND
-        if args.bloodhound:
-            if is_valid_zip(args.bloodhound):
-                parse_bloodhound_zip(args.bloodhound, workbook)
-            else:
-                print(colored_text("Error: Provided BloodHound file is not a valid .zip file.", "red"))
+    # INTERNAL
+    if args.internal:
+        if not os.path.isfile(args.internal) or not args.internal.lower().endswith('.nessus'):
+            print(colored_text("Error: Internal file is not a valid .nessus file.", "red"))
+        else:
+            print("\n" + bold_text("Processing Nessus File:") + " " + colored_text(args.internal, "green"))
+            internal_data = parse_nessus_file(args.internal)
+            print(colored_text("Writing data to the Internal Scan sheet...", "yellow"))
+            write_to_excel(internal_data, 'Internal Scan', workbook)
+            write_processes_tab(args.internal, workbook)
+            write_unsupported_software(internal_data, workbook)
+            write_missing_critical_patches(internal_data, workbook)
+            write_protocols_tab(args.internal, workbook)
+            write_port_table(args.internal, workbook, "Internal Port Table", is_external=False)
+            write_smb_signing_off(args.internal, workbook)
+            print("-" * 60)
 
-        # ATTACKFORGE
-        if args.attackforge:
-            if is_valid_customization(args.attackforge):
-                append_customization_data(args.attackforge, workbook)
-            else:
-                print(colored_text("Error: Provided AttackForge file is not a valid .customization file.", "red"))
-                
-        # Sort External Scan and Internal Scan sheets by severity
-        if "External Scan" in workbook.sheetnames:
-            sort_worksheet_by_severity(workbook["External Scan"])
+    # BLOODHOUND
+    if args.bloodhound:
+        print("\n" + bold_text("Processing BloodHound file:") + " " + colored_text(args.bloodhound, "green"))
+        if is_valid_zip(args.bloodhound):
+            parse_bloodhound_zip(args.bloodhound, workbook)
+        else:
+            print(colored_text("Error: Provided BloodHound file is not a valid .zip file.", "red"))
+        print("-" * 60)
 
-        if "Internal Scan" in workbook.sheetnames:
-            sort_worksheet_by_severity(workbook["Internal Scan"])
+    # ATTACKFORGE
+    if args.attackforge:
+        print("\n" + bold_text("Loading customization from:") + " " + colored_text(args.attackforge, "green"))
+        if is_valid_customization(args.attackforge):
+            append_customization_data(args.attackforge, workbook)
+        else:
+            print(colored_text("Error: Provided AttackForge file is not a valid .customization file.", "red"))
+        print("-" * 60)
 
-        # Apply styling to all sheets after they're created
-        apply_workbook_styling(workbook)
+# Sort sheets by severity
+    for sheet_name in ["External Scan", "Internal Scan"]:
+        if sheet_name in workbook.sheetnames:
+            print(colored_text("Sorting ", "white") + colored_text(sheet_name, "green") + colored_text(" sheet by severity...", "white"))
+            sort_worksheet_by_severity(workbook[sheet_name])
+
+
+    # Apply styling to all sheets after they're created
+    
+    apply_workbook_styling(workbook)
 
     try:
         workbook.save(args.output)
-        print(f"\n{colored_text('Report saved successfully!!', 'white')}: {colored_text(args.output, 'green')}")
+        print(f"\n{bold_text('Report saved successfully!!')}: {colored_text(args.output, 'green')}")
     except Exception as e:
-        print(f"\nError saving report: {e}")
+        print(f"\n{colored_text('Error saving report:', 'red')} {e}")
+
 
 
 
