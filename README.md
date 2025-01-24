@@ -1,7 +1,15 @@
-# Nessus Report Parser
+# Hacket Script
 
-This Python script parses Nessus (`.nessus`) files to generate a multi-tab Excel report. It includes features for identifying vulnerabilities, processes, protocols, and more in both **internal** and **external** Nessus scans. Additionally, it can parse a AttackForge  (`.customization`) files to append extra vulnerability data into the same report.
+This python script is designed to parse your Nessus files, Attack Forge files, Bloodhound Files, and OSINT spread sheets to combine one massive spread sheet with all of your engagment data in one place. This script will parse the nessus files and create a spread sheet with all of the vulnerabilities, hosts, and other data in one place. It will also parse the Attack Forge files and add the data to the spread sheet. If you provide a Bloodhound file it will extract the data and add it to the spread sheet. This script is designed to make it easier to manage all of your data in one place.
+```bash
+INSTALLATION: 
+sudo git clone https://github.com/ALi3nW3rX/hacketscript.git
+cd hacketscript
+pip install -r requirements.txt
 
+USAGE:
+python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
+```
 ## Features
 
 1. **External Scan** (Tab: **External Scan**)  
@@ -34,9 +42,12 @@ This Python script parses Nessus (`.nessus`) files to generate a multi-tab Excel
    - Automatic column-width adjustments (heuristic).  
    - Freezes the first two columns (`A`, `B`) on “External Scan” and “Internal Scan” tabs for easy navigation.
 
-7. **[ NEW!! ]** **Bloodhound**
+7. **Bloodhound** (Work In Progress)
    - Will find the Bloodhound data in the Nessus file and create a new tab with the data.
    - Currently only finds kerberoastable users and their associated SPNs, ASREProastable users and their associated SPNs, Users with Unconstrained Delegation, Users with RBCD. (MORE TO COME).
+
+8. **OSINT** (Work In Progress)
+   - Will grab your OSINT data from a spread sheet and add it to the new spreadsheet.
 
 ## Requirements
 
@@ -58,6 +69,7 @@ pip install openpyxl
 -i/--internal Path to the internal Nessus file (.nessus). -i internal_scan.nessus
 -a/--attackforge Path to the .customization (AttackForge). file for appending vulnerabilities. -a extra_vulns.customization
 -b/--bloodhound Path to the .zip file to extract Bloodhound data from. -b bloodhound_scan.zip
+-os/--osint Path to the OSINT spread sheet. -os osint.xlsx
 -o/--output Output Excel file name. (Defaults to Nessus_Report.xlsx.). -o My_Report.xlsx
 
 - Note: You must provide at least one of -e, -i, -b or -a. Any combination is valid.
