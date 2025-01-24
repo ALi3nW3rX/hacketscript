@@ -939,19 +939,20 @@ def process_files(args, workbook):
             print("-" * 60)
     
     # OSINT REPORT
-    if args.osint:    
-    # Check if the provided OSINT file exists
-        osint_file_path = os.path.abspath(args.osint)  # Resolve full path    
-    if not os.path.isfile(osint_file_path):
-        print(colored_text(f"Error: OSINT report file does not exist at {osint_file_path}.", "red"))
-    
-    elif not osint_file_path.lower().endswith('.xlsx'):
-        print(colored_text(f"Error: OSINT report is not a valid .xlsx file: {osint_file_path}", "red"))
-    
-    else:
-        print("\n" + bold_text("Importing OSINT report:") + " " + colored_text(osint_file_path, "green"))
-        import_osint_report(osint_file_path, workbook)
-        print("-" * 60)
+    if args.osint:
+        try:
+            osint_file_path = os.path.abspath(args.osint)  # Resolve full path
+            if not os.path.isfile(osint_file_path):
+                print(colored_text(f"Error: OSINT report file does not exist at {osint_file_path}.", "red"))
+            elif not osint_file_path.lower().endswith('.xlsx'):
+                print(colored_text(f"Error: OSINT report is not a valid .xlsx file: {osint_file_path}", "red"))
+            else:
+                print("\n" + bold_text("Importing OSINT report:") + " " + colored_text(osint_file_path, "green"))
+                import_osint_report(osint_file_path, workbook)
+                print("-" * 60)
+        except Exception as e:
+            print(f"Error processing OSINT report: {e}")
+
     
     # BLOODHOUND
     if args.bloodhound:
