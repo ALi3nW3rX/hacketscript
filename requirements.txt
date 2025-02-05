@@ -1,3 +1,4 @@
 openpyxl==3.1.2  # For reading/writing Excel files and applying styles
 xmltodict==0.13.0  # For working with XML (alternative to xml.etree.ElementTree, if needed)
 argparse  # No version needed, part of the Python standard library
+clint==0.5.1  # For adding color to the console output

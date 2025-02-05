@@ -171,3 +171,5 @@ cython_debug/
 .pypirc
 
 /Samples
+/Clients
+Nessus_Report.xlsx

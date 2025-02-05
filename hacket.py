@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+from __future__ import print_function
 import xml.etree.ElementTree as ET
 import argparse
 import openpyxl
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl import load_workbook
 import os
+import sys
 import time
 import threading
 from itertools import cycle
@@ -12,6 +14,8 @@ import re
 from threading import Event
 import json
 import zipfile
+from clint.arguments import Args
+from clint.textui import puts, colored, indent
 
 
 try:
@@ -184,13 +188,7 @@ def write_processes_tab(file_path, workbook):
         print(colored_text(f"Error processing processes tab: {e}", "red"))
 
 def write_protocols_tab(file_path, workbook):
-    """
-    Write protocol information to Excel worksheet, focusing on:
-      1) LLMNR (port 5355)
-      2) mDNS  (port 5353)
-      3) NBT-NS (port 137)
-      4) IPv6  (detected via IP address format)
-    """
+
     print("Processing protocols from Nessus file...")
     try:
         tree = ET.parse(file_path)
@@ -254,11 +252,7 @@ def write_protocols_tab(file_path, workbook):
         print(f"Error processing protocols tab: {e}")
 
 def write_unsupported_software(data_dict, workbook):
-    """
-    Write unsupported software information to Excel worksheet with columns:
-      Software Name, Severity, Host Count, Affected Hosts
-    Sorted by host count descending.
-    """
+
     ws = workbook.create_sheet(title="Unsupported Software")
     
     headers = ['Software Name', 'Severity', 'Host Count', 'Affected Hosts']
@@ -287,17 +281,7 @@ def write_unsupported_software(data_dict, workbook):
         ])
 
 def write_missing_critical_patches(data_dict, workbook):
-    """
-    Write 'Missing Critical Patches' information to a new worksheet with columns:
-      1) Patch         (A)
-      2) Severity      (B)
-      3) Host Count    (C)
-      4) Affected Hosts(D)
 
-    This includes only severity = [Medium, High, Critical].
-    Sorts primarily by severity (Critical > High > Medium),
-    then secondarily by host count (descending).
-    """
     ws = workbook.create_sheet(title="Missing Critical Patches")
     
     # Create headers
@@ -738,13 +722,6 @@ def parse_port_info(nessus_file):
     return host_info
 
 def write_smb_signing_off(file_path, workbook):
-    """
-    Parse the internal Nessus file for hosts that have SMB signing turned off or not required,
-    then create a new tab "SMB Signing Off" with columns:
-      [Total Count | DNS Name | IP Address]
-
-    We only show the total count once, in the top-left cell (row 2, col A).
-    """
 
     print("Processing SMB signing off hosts...")
 
@@ -880,54 +857,40 @@ def display_banner(banner_file):
             print(banner)
     except Exception as e:
         print(f"Error: Unable to load banner from {banner_file}. {e}")
+        
 
-def main():
-    parser = argparse.ArgumentParser(description='Parse Nessus files and generate Excel report.')
-    parser.add_argument('-e', '--external', help='Path to the external Nessus scan file.')
-    parser.add_argument('-i', '--internal', help='Path to the internal Nessus scan file.')
-    parser.add_argument('-os', '--osint', help='Path to the OSINT .xlsx file to import.')
-    parser.add_argument('-a', '--attackforge', help='Path to the .customization (AttackForge) file.')
-    parser.add_argument('-b', '--bloodhound', help='Path to the BloodHound .zip file.')
-    parser.add_argument('-o', '--output', default='Nessus_Report.xlsx',
-                        help='Output Excel file name (default: Nessus_Report.xlsx)')
+sys.path.insert(0, os.path.abspath('..'))
 
-    args = parser.parse_args()
-
-    if not any([args.external, args.internal, args.attackforge, args.bloodhound]):
-        parser.error("Please provide at least one input file.")
-
-    # Create a new workbook
-    workbook = openpyxl.Workbook()
-    workbook.remove(workbook.active)
-
-    # Process the provided files
-    process_files(args, workbook)
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Hacket - Nessus & OSINT Report Generator")
+    parser.add_argument("-i", "--internal", help="Path to the internal Nessus scan file")
+    parser.add_argument("-e", "--external", help="Path to the external Nessus scan file")
+    parser.add_argument("-os", "--osint", help="Path to the OSINT .xlsx file to import")
+    parser.add_argument("-a", "--attackforge", help="Path to the AttackForge .customization file")
+    parser.add_argument("-b", "--bloodhound", help="Path to the BloodHound .zip file")
+    parser.add_argument("-o", "--output", help="Output Excel file name", default="Nessus_Report.xlsx")
+    return parser.parse_args()
 
 def process_files(args, workbook):
-    print(colored_text("Processing files...", "white"))
-    print("-" * 60)  # Separator line
-
-    # EXTERNAL
+    print("Processing files...")
+    print("-" * 60)
+    
     if args.external:
         if not os.path.isfile(args.external) or not args.external.lower().endswith('.nessus'):
-            print(colored_text("Error: External file is not a valid .nessus file.", "red"))
+            print("Error: External file is not a valid .nessus file.")
         else:
-            print("\n" + bold_text("Processing Nessus File:") + " " + colored_text(args.external, "green"))
+            print(f"Processing Nessus File: {args.external}")
             external_data = parse_nessus_file(args.external)
-            print(colored_text("Writing data to the External Scan sheet...", "yellow"))
             write_to_excel(external_data, 'External Scan', workbook)
             write_port_table(args.external, workbook, "External Port Table", is_external=True)
             extract_host_data(args.external, "External Host Data", workbook)
-            print("-" * 60)
-
-    # INTERNAL
+    
     if args.internal:
         if not os.path.isfile(args.internal) or not args.internal.lower().endswith('.nessus'):
-            print(colored_text("Error: Internal file is not a valid .nessus file.", "red"))
+            print("Error: Internal file is not a valid .nessus file.")
         else:
-            print("\n" + bold_text("Processing Nessus File:") + " " + colored_text(args.internal, "green"))
+            print(f"Processing Nessus File: {args.internal}")
             internal_data = parse_nessus_file(args.internal)
-            print(colored_text("Writing data to the Internal Scan sheet...", "yellow"))
             write_to_excel(internal_data, 'Internal Scan', workbook)
             write_processes_tab(args.internal, workbook)
             write_unsupported_software(internal_data, workbook)
@@ -936,63 +899,39 @@ def process_files(args, workbook):
             write_port_table(args.internal, workbook, "Internal Port Table", is_external=False)
             write_smb_signing_off(args.internal, workbook)
             extract_host_data(args.internal, "Internal Host Data", workbook)
-            print("-" * 60)
     
-    # OSINT REPORT
     if args.osint:
-        try:
-            osint_file_path = os.path.abspath(args.osint)  # Resolve full path
-            if not os.path.isfile(osint_file_path):
-                print(colored_text(f"Error: OSINT report file does not exist at {osint_file_path}.", "red"))
-            elif not osint_file_path.lower().endswith('.xlsx'):
-                print(colored_text(f"Error: OSINT report is not a valid .xlsx file: {osint_file_path}", "red"))
-            else:
-                print("\n" + bold_text("Importing OSINT report:") + " " + colored_text(osint_file_path, "green"))
-                import_osint_report(osint_file_path, workbook)
-                print("-" * 60)
-        except Exception as e:
-            print(f"Error processing OSINT report: {e}")
-
+        if not os.path.isfile(args.osint) or not args.osint.lower().endswith('.xlsx'):
+            print(f"Error: OSINT report is not a valid .xlsx file: {args.osint}")
+        else:
+            import_osint_report(args.osint, workbook)
     
-    # BLOODHOUND
     if args.bloodhound:
-        print("\n" + bold_text("Processing BloodHound file:") + " " + colored_text(args.bloodhound, "green"))
-        if is_valid_zip(args.bloodhound):
+        if os.path.isfile(args.bloodhound) and args.bloodhound.endswith('.zip'):
             parse_bloodhound_zip(args.bloodhound, workbook)
         else:
-            print(colored_text("Error: Provided BloodHound file is not a valid .zip file.", "red"))
-        print("-" * 60)
+            print("Error: Provided BloodHound file is not a valid .zip file.")
 
-    # ATTACKFORGE
     if args.attackforge:
-        print("\n" + bold_text("Loading customization from:") + " " + colored_text(args.attackforge, "green"))
-        if is_valid_customization(args.attackforge):
+        if os.path.isfile(args.attackforge) and args.attackforge.endswith('.customization'):
             append_customization_data(args.attackforge, workbook)
         else:
-            print(colored_text("Error: Provided AttackForge file is not a valid .customization file.", "red"))
-        print("-" * 60)
-
-    # Sort sheets by severity
-    for sheet_name in ["External Scan", "Internal Scan"]:
-        if sheet_name in workbook.sheetnames:
-            print(colored_text("Sorting ", "white") + colored_text(sheet_name, "green") + colored_text(" sheet by severity...", "white"))
-            sort_worksheet_by_severity(workbook[sheet_name])
-
-
-    # Apply styling to all sheets after they're created
+            print("Error: Provided AttackForge file is not a valid .customization file.")
     
     apply_workbook_styling(workbook)
-
+    
     try:
         workbook.save(args.output)
-        print(f"\n{bold_text('Report saved successfully!!')}: {colored_text(args.output, 'green')}")
+        print(f"Report saved successfully: {args.output}")
     except Exception as e:
-        print(f"\n{colored_text('Error saving report:', 'red')} {e}")
+        print(f"Error saving report: {e}")
 
-
-
+def main():
+    args = parse_arguments()
+    print(f"Arguments received: {args}")
+    workbook = openpyxl.Workbook()
+    workbook.remove(workbook.active)
+    process_files(args, workbook)
 
 if __name__ == "__main__":
-    banner_file = "banner.txt"
-    display_banner(banner_file)
     main()
