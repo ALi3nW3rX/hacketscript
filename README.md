@@ -8,7 +8,7 @@ cd hacketscript
 pip install -r requirements.txt
 
 USAGE:
-python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
+python hacket.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
 ```
 ## Features
 
@@ -49,6 +49,9 @@ python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -
 8. **OSINT** (Work In Progress)
    - Will grab your OSINT data from a spread sheet and add it to the new spreadsheet.
 
+9. **Combine** Combine 2 or more nessus files into one .nessus file for easier parsing.
+   - Will take multiple .nessus files as an import and create 1 .nessus file for easier parsing.
+
 ## Requirements
 
 - **Python 3.6+**
@@ -70,6 +73,7 @@ pip install openpyxl
 -a/--attackforge Path to the .customization (AttackForge). file for appending vulnerabilities. -a extra_vulns.customization
 -b/--bloodhound Path to the .zip file to extract Bloodhound data from. -b bloodhound_scan.zip
 -os/--osint Path to the OSINT spread sheet. -os osint.xlsx
+-c/--combine Directory of .nessus files to merge" -c Directory of .nessus files to merge -o output.nessus
 -o/--output Output Excel file name. (Defaults to Nessus_Report.xlsx.). -o My_Report.xlsx
 
 - Note: You must provide at least one of -e, -i, -b or -a. Any combination is valid.
@@ -77,12 +81,12 @@ pip install openpyxl
 
 # Example Usage
 ```bash
-python nessus_report_parser.py --external external_scan.nessus
-python nessus_report_parser.py --internal internal_scan.nessus
-python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus
-python nessus_report_parser.py -i internal_scan.nessus -a extra_vulns.customization
-python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
-python nessus_report_parser.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -b bloodhound.zip -o final_report.xlsx
+python hacket.py --external external_scan.nessus
+python hacket.py --internal internal_scan.nessus
+python hacket.py -e external_scan.nessus -i internal_scan.nessus
+python hacket.py -i internal_scan.nessus -a extra_vulns.customization
+python hacket.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -o final_report.xlsx
+python hacket.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.customization -b bloodhound.zip -o final_report.xlsx
 ```
 
 # Output
