@@ -49,7 +49,8 @@ python hacket.py -e external_scan.nessus -i internal_scan.nessus -a extra_vulns.
 8. **OSINT** (Work In Progress)
    - Will grab your OSINT data from a spread sheet and add it to the new spreadsheet.
 
-9. **Combine** Combine 2 or more nessus files into one .nessus file for easier parsing.
+9. **Combine** 
+   - Combine 2 or more nessus files into one .nessus file for easier parsing.
    - Will take multiple .nessus files as an import and create 1 .nessus file for easier parsing.
 
 ## Requirements
