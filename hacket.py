@@ -5,7 +5,6 @@ import argparse
 import openpyxl
 
 
-
 # Add the modules directory to the system path
 sys.path.insert(0, os.path.abspath("modules"))
 
@@ -19,7 +18,7 @@ from bloodhound_parser import parse_bloodhound_zip
 from attackforge import append_customization_data
 from osint_importer import import_osint_report
 from banner import display_banner
-from security_checks import write_missing_critical_patches, write_protocols_tab, write_smb_signing_off, write_unsupported_software
+from security_checks import write_missing_critical_patches, write_protocols_tab, write_smb_signing_off, write_unsupported_software, write_processes_tab
 
 
 def parse_arguments():
@@ -61,6 +60,7 @@ def process_files(args, workbook):
             write_missing_critical_patches(internal_data, workbook)
             write_smb_signing_off(args.internal, workbook)
             write_unsupported_software(internal_data, workbook)
+            write_processes_tab(args.internal, workbook)
             
     
     if args.osint:
