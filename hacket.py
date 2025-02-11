@@ -4,6 +4,8 @@ import sys
 import argparse
 import openpyxl
 
+
+
 # Add the modules directory to the system path
 sys.path.insert(0, os.path.abspath("modules"))
 
@@ -17,6 +19,7 @@ from bloodhound_parser import parse_bloodhound_zip
 from attackforge import append_customization_data
 from osint_importer import import_osint_report
 from banner import display_banner
+from security_checks import write_missing_critical_patches, write_protocols_tab, write_smb_signing_off, write_unsupported_software
 
 
 def parse_arguments():
@@ -43,6 +46,7 @@ def process_files(args, workbook):
             write_to_excel(external_data, 'External Scan', workbook)
             write_port_table(args.external, workbook, "External Port Table", is_external=True)
             extract_host_data(args.external, "External Host Data", workbook)
+             
     
     if args.internal:
         if not os.path.isfile(args.internal) or not args.internal.lower().endswith('.nessus'):
@@ -53,6 +57,11 @@ def process_files(args, workbook):
             write_to_excel(internal_data, 'Internal Scan', workbook)
             write_port_table(args.internal, workbook, "Internal Port Table", is_external=False)
             extract_host_data(args.internal, "Internal Host Data", workbook)
+            write_protocols_tab(args.internal, workbook)
+            write_missing_critical_patches(internal_data, workbook)
+            write_smb_signing_off(args.internal, workbook)
+            write_unsupported_software(internal_data, workbook)
+            
     
     if args.osint:
         if not os.path.isfile(args.osint) or not args.osint.lower().endswith('.xlsx'):
