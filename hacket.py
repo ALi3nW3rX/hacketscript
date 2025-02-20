@@ -77,7 +77,9 @@ def process_files(args, workbook):
 
     if args.attackforge:
         if os.path.isfile(args.attackforge) and args.attackforge.endswith('.customization'):
-            append_customization_data(args.attackforge, workbook)
+            run_external = True
+            run_internal = True
+            append_customization_data(args.attackforge, workbook, use_external=run_external, use_internal=run_internal)
         else:
             print("Error: Provided AttackForge file is not a valid .customization file.")
             

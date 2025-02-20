@@ -52,10 +52,7 @@ def write_to_excel(data_dict, sheet_name, workbook):
     pass
 
 def write_port_table(nessus_file, workbook, sheet_name, is_external=False):
-    """
-    Writes parsed Nessus port information into an Excel sheet.
-    Supports different column formats based on whether it's for internal or external use.
-    """
+    
     data = parse_port_info(nessus_file)
     ws = workbook.create_sheet(title=sheet_name)
 
@@ -100,7 +97,6 @@ def write_port_table(nessus_file, workbook, sheet_name, is_external=False):
     pass
 
 def apply_workbook_styling(workbook):
-    """Apply consistent styling across all worksheets in the workbook."""
     print(colored_text("Applying consistent styling across all worksheets...", "yellow"))
     header_font = Font(name="Calibri", size=12, bold=True)
     cell_font = Font(name="Calibri", size=11)

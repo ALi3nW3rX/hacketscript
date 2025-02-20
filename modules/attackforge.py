@@ -1,20 +1,20 @@
 import json
 import os
-
 from utilities import colored_text
 
 def is_valid_customization(file_path):
     """Check if the provided file path is a valid .customization file."""
     return os.path.isfile(file_path) and file_path.endswith('.customization')
 
-def append_customization_data(custom_file, workbook):
-    
+def append_customization_data(custom_file, workbook, use_external=True, use_internal=True):
     with open(custom_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     vulns = data.get("vulnerabilities", [])
     external_rows = []
     internal_rows = []
+    
+    severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 
     # Separate external vs internal
     for vuln in vulns:
@@ -47,20 +47,27 @@ def append_customization_data(custom_file, workbook):
         else:
             external_rows.append(row_data)
 
-    # Append to "External Scan"
-    if "External Scan" in workbook.sheetnames:
-        ws_ext = workbook["External Scan"]
-        for row in external_rows:
-            ws_ext.append(row)
-        print(f"{colored_text('Appended', 'white')} {colored_text(len(external_rows), 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('External Scan', 'green')} tab.")
-    else:
-        print(colored_text("Warning: 'External Scan' sheet not found. No external data appended.", "red"))
+    def insert_sorted(worksheet, new_rows):
+        existing_data = list(worksheet.iter_rows(min_row=2, values_only=True))
+        all_data = existing_data + new_rows
+        sorted_data = sorted(all_data, key=lambda x: severity_order.get(x[1], 5))
 
-    # Append to "Internal Scan"
-    if "Internal Scan" in workbook.sheetnames:
-        ws_int = workbook["Internal Scan"]
-        for row in internal_rows:
-            ws_int.append(row)
-        print(f"{colored_text('Appended', 'white')} {colored_text(len(internal_rows), 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('Internal Scan', 'green')} tab.")
-    else:
-        print(colored_text("Warning: 'Internal Scan' sheet not found. No Internal data appended.", "red"))
+        for row, entry in enumerate(sorted_data, start=2):
+            for col, value in enumerate(entry, start=1):
+                worksheet.cell(row=row, column=col, value=value)
+
+        return len(new_rows)
+
+    if use_external:
+        if "External Scan" in workbook.sheetnames:
+            ws_ext = workbook["External Scan"]
+            inserted_count = insert_sorted(ws_ext, external_rows)
+            print(f"{colored_text('Inserted', 'white')} {colored_text(inserted_count, 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('External Scan', 'green')} tab.")
+        
+
+    if use_internal:
+        if "Internal Scan" in workbook.sheetnames:
+            ws_int = workbook["Internal Scan"]
+            inserted_count = insert_sorted(ws_int, internal_rows)
+            print(f"{colored_text('Inserted', 'white')} {colored_text(inserted_count, 'green')} {colored_text('vulnerabilities', 'white')} to {colored_text('Internal Scan', 'green')} tab.")
+        
