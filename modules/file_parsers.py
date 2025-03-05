@@ -1,10 +1,11 @@
 import xml.etree.ElementTree as ET
 
-from utilities import SEVERITY_MAP, colored_text
+from utilities import SEVERITY_MAP, colored_text, get_cvss2_severity, get_cvss3_severity
 
 
 
 def parse_nessus_file(file_path):
+    """Parses a Nessus file and maps severity levels correctly."""
     try:
         print("\r" + colored_text("Parsing Nessus File:", "white") + " " + colored_text(file_path, "green") + "\n", end="")
         tree = ET.parse(file_path)
@@ -22,12 +23,50 @@ def parse_nessus_file(file_path):
 
     for host in report_hosts:
         hostname = host.attrib.get('name', '')
+
         for block in host.iter('ReportItem'):
             plugin_name = block.attrib.get('pluginName', '')
-            severity = block.attrib.get('severity', '0')
-            severity_label = SEVERITY_MAP.get(severity, "Unknown")
+            port = block.attrib.get('port', '')
 
-            # Skip all 'Informational' findings:
+            # Debug: Print every plugin name and port to confirm what we are parsing
+            #print(f"[DEBUG] Found ReportItem - Plugin: {plugin_name}, Port: {port}")
+
+            # Extract CVSS Scores
+            cvss3_base_score = block.findtext('cvss3_base_score')
+            cvss2_base_score = block.findtext('cvss_base_score')
+            risk_factor = block.findtext('risk_factor')
+
+            # Convert score strings to float (if available)
+            if cvss3_base_score:
+                try:
+                    cvss3_score_float = float(cvss3_base_score)
+                    severity_label = get_cvss3_severity(cvss3_score_float)
+
+                    # 🛠️ Override if Nessus explicitly labeled it as "Critical"
+                    nessus_severity = block.attrib.get('severity', '0')  # Get Nessus severity
+                    if (nessus_severity == "4" or (risk_factor and risk_factor.lower() == "critical")) and severity_label != "Critical":
+                        severity_label = "Critical"  # Force it to match Nessus' classification
+                        #print(f"[OVERRIDE] {plugin_name} - Nessus marked this as Critical. Overriding {severity_label} -> Critical.")
+
+                except ValueError:
+                    #print(f"[ERROR] Could not convert CVSS v3.0 score: {cvss3_base_score} for {plugin_name}")
+                    severity_label = "Unknown"
+            elif cvss2_base_score:
+                try:
+                    cvss2_score_float = float(cvss2_base_score)
+                    severity_label = get_cvss2_severity(cvss2_score_float)
+                except ValueError:
+                    #print(f"[ERROR] Could not convert CVSS v2.0 score: {cvss2_base_score} for {plugin_name}")
+                    severity_label = "Unknown"
+            else:
+                # Fallback to legacy Nessus severity mapping
+                severity = block.attrib.get('severity', '0')
+                severity_label = SEVERITY_MAP.get(severity, "Unknown")
+                #print(f"[DEBUG] Plugin: {plugin_name} - Legacy Severity Mapping: {severity} -> {severity_label}")  # Debug Print
+  # Debug Print
+
+
+            # Skip all 'Informational' findings
             if severity_label == "Informational":
                 continue
 
@@ -37,7 +76,7 @@ def parse_nessus_file(file_path):
                 vuln_dict[plugin_name] = {
                     'Severity': severity_label,
                     'Affected Hosts': [host_port],
-                    'Host Info': host_info,  # Add Host Info here
+                    'Host Info': host_info,
                     'Recommendations': block.findtext('solution', ''),
                     'Description': block.findtext('description', '')
                 }
@@ -47,6 +86,7 @@ def parse_nessus_file(file_path):
 
     print(colored_text("Parsed", "white") + " " + colored_text(str(len(vuln_dict)), "green") + " " + colored_text("vulnerabilities from the", "white") + " " + colored_text("Nessus file.", "green"))
     return vuln_dict
+
 pass
 
 def parse_port_info(nessus_file):

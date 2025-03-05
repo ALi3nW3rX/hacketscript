@@ -14,7 +14,29 @@ SEVERITY_MAP = {
 
 SEVERITY_ORDER = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Informational": 0}
 
+# CVSS v3.0 Severity Mapping Function
+def get_cvss3_severity(score):
+    if score >= 9.0:
+        return "Critical"
+    elif score >= 7.0:
+        return "High"
+    elif score >= 4.0:
+        return "Medium"
+    elif score > 0.0:
+        return "Low"
+    return "Informational"
 
+# CVSS v2.0 Severity Mapping Function
+def get_cvss2_severity(score):
+    if score >= 10.0:
+        return "Critical"
+    elif score >= 7.0:
+        return "High"
+    elif score >= 4.0:
+        return "Medium"
+    elif score > 0.0:
+        return "Low"
+    return "Informational"
 
 def colored_text(text, color="white"):
     colors = {
