@@ -2,8 +2,6 @@ import xml.etree.ElementTree as ET
 
 from utilities import SEVERITY_MAP, colored_text, get_cvss2_severity, get_cvss3_severity
 
-
-
 def parse_nessus_file(file_path):
     """Parses a Nessus file and maps severity levels correctly."""
     try:
