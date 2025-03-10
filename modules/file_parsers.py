@@ -168,16 +168,16 @@ def parse_port_info(nessus_file):
 
         # Build URLs
         url_str = "\n".join(sorted(www_urls))
-        # Debugging: Print the URLs for each host
         
-        if open_ports_str:  # Only add hosts that have open ports
-            host_info.append({
-                "DNS Name": dns_name or "",
-                "IP Address": host_ip or "",
-                "Open Ports": open_ports_str,
-                "Port Info": port_info_str,
-                "URLs": url_str
-            })
+        # Build host information dictionary
+        host_info.append({
+            "DNS Name": dns_name or "",
+            "IP Address": host_ip or "",
+            "Open Ports": open_ports_str,
+            "Port Info": port_info_str,
+            "URLs": url_str,
+        })
 
     return host_info
+
 pass

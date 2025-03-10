@@ -1,3 +1,4 @@
+import socket
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 
@@ -31,25 +32,50 @@ def write_to_excel(data_dict, sheet_name, workbook):
     # Sort and write data
     sorted_data = sorted(data_dict.items(), key=lambda x: SEVERITY_ORDER.get(x[1]['Severity'], -1), reverse=True)
     for vuln, data in sorted_data:
+        affected_hosts = data['Affected Hosts']
+        affected_hosts_ips = []
         affected_hostnames = []
         
-        # Lookup DNS names for each affected host
-        for host in data['Affected Hosts']:
-            ip_address = host.split(':')[0]  # Extract the IP part of "IP:Port"
-            dns_name = next((info['DNS Name'] for info in data.get('Host Info', []) if info['IP Address'] == ip_address), "")
-            if dns_name:
-                affected_hostnames.append(dns_name)
-        
+        for host in affected_hosts:
+            if is_valid_ip(host.split(':')[0]):  # Check if it's a valid IP address
+                affected_hosts_ips.append(host)  # Keep IP as is (with port)
+                
+                # Try to get DNS name for the IP
+                dns_name = next((info['DNS Name'] for info in data.get('Host Info', []) if info['IP Address'] == host.split(':')[0]), "")
+                if dns_name:
+                    affected_hostnames.append(dns_name)
+            else:
+                # Handle hostname case
+                affected_hostnames.append(host)  # If it's a hostname, put it in hostnames
+                # Optionally, try to resolve hostname to IP if needed.
+                # This requires DNS lookup and might not be reliable.
+                try:
+                    ip_address = socket.gethostbyname(host.split(':')[0])
+                    affected_hosts_ips.append(f"{ip_address}:{host.split(':')[1]}")  # Add IP with port
+                except socket.gaierror:
+                    affected_hosts_ips.append("Hostname: " + host) # Could not resolve
+                    print(f"Could not resolve hostname: {host}")
+
         # Write row to worksheet
         row = [
             vuln,
             data['Severity'],
-            ', '.join(data['Affected Hosts']),
-            ', '.join(affected_hostnames),
+            ', '.join(affected_hosts_ips),  # Use IPs here
+            ', '.join(affected_hostnames),  # Use hostnames here
             data['Recommendations'],
         ]
         ws.append(row)
     pass
+
+# Helper function to validate IP address format
+def is_valid_ip(ip):
+    try:
+        socket.inet_aton(ip)
+        return True
+    except socket.error:
+        return False
+
+
 
 def write_port_table(nessus_file, workbook, sheet_name, is_external=False):
     
