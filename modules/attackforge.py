@@ -21,25 +21,40 @@ def append_customization_data(custom_file, workbook, use_external=True, use_inte
         title = vuln.get("title", "Unknown Title")
         severity = vuln.get("priority", "Unknown Severity")
         recommendation = vuln.get("remediation_recommendation", "")
+        description = vuln.get("description", "")
         
-        # Build the Affected Hosts string
+        # Build the Affected Hosts and Affected Hostnames strings
         affected_assets = vuln.get("affected_assets", [])
-        hosts = []
+        affected_hosts = []  # IPs or host identifiers
+        affected_hostnames = []  # DNS names or hostnames
         is_internal = False
 
         for asset_entry in affected_assets:
             host_name = asset_entry.get("asset", "Unknown Host")
-            hosts.append(host_name)
+            affected_hosts.append(host_name)
+            
+            # Extract DNS name or hostname if available
+            dns_name = asset_entry.get("dns_name", "")
+            if dns_name:
+                affected_hostnames.append(dns_name)
+            
             # Check tags to see if it's internal
             for tag_dict in asset_entry.get("assetCustomTags", []):
                 if tag_dict.get("Internal") == "true":
                     is_internal = True
-
+        
+        # Ensure default values if no data is available
+        if not affected_hosts:
+            affected_hosts.append("N/A")
+        if not affected_hostnames:
+            affected_hostnames.append("N/A")
+        
         row_data = [
-            title,                   # Vulnerability Name
-            severity,               # Severity
-            ", ".join(hosts),       # Affected Hosts
-            recommendation          # Recommendations
+            title,                           # Vulnerability Name
+            severity,                        # Severity
+            ", ".join(affected_hosts),       # Affected Hosts (IPs)
+            ", ".join(affected_hostnames),   # Affected Hostnames (DNS names)
+            recommendation                   # Recommendations
         ]
         
         if is_internal:
