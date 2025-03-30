@@ -173,3 +173,5 @@ cython_debug/
 /Samples
 /Clients
 Nessus_Report.xlsx
+url_responses.txt
+checkip.py
